@@ -15,7 +15,7 @@ extern void initialise_monitor_handles(void);
 
 #if COMPILE_TOUCH_FUNCTIONS == 1
 static STMPE811_TouchData StaticTouchData;
-#endif // COMPILE_TOUCH_FUNCTIONS
+#endif // COMPILE_TOUCH_FUNCTION
 
 
 static uint32_t wins1 = 0;
@@ -31,8 +31,7 @@ void ApplicationInit(void)
     #if COMPILE_TOUCH_FUNCTIONS == 1
 	InitializeLCDTouch();
 
-	// This is the orientation for the board to be direclty up where the buttons are vertically above the screen
-	// Top left would be low x value, high y value. Bottom right would be low x value, low y value.
+
 	StaticTouchData.orientation = STMPE811_Orientation_Portrait_2;
 
 	#endif // COMPILE_TOUCH_FUNCTIONS
@@ -117,8 +116,7 @@ GameMode menuLoop(void) {
 
   while (1) {
     if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
-      // Portrait_1 already did: td.x = 239 - rawX; td.y = 319 - rawY
-      // Undo the X inversion so 0…239 is left→right again:
+
       uint16_t x = td.x;
       uint16_t y = LCD_PIXEL_HEIGHT - td.y;
 
@@ -314,7 +312,7 @@ static void finalScreen(uint8_t winner, uint32_t duration_s) {
   for (int i = 0; lbl[i]; i++)
     LCD_DisplayChar(x + i*Font16x24.Width, y, lbl[i]);
 
-  // Wait for either the on-board button or a touch on “Restart”
+  // Wait for touch on “Restart”
   STMPE811_TouchData td = { .orientation = STMPE811_Orientation_Portrait_2 };
   while (1) {
     if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
@@ -358,18 +356,6 @@ void playLoop(GameMode mode) {
     drawBoard();
     drawHoverCoin();
 
-    // 4) (Optional) draw the “DROP” region for reference
-    for (int y = BOARD_HEIGHT; y < BOARD_HEIGHT + DROP_BTN_H; y++)
-        for (int x = 0; x < LCD_PIXEL_WIDTH; x++)
-            LCD_Draw_Pixel(x, y, GRID_COLOR);
-    LCD_SetTextColor(BOARD_COLOR);
-    LCD_SetFont(&Font16x24);
-    int tx = (LCD_PIXEL_WIDTH - 4*Font16x24.Width)/2;
-    int ty = BOARD_HEIGHT + (DROP_BTN_H - Font16x24.Height)/2;
-    LCD_DisplayChar(tx,   ty, 'D');
-    LCD_DisplayChar(tx+16,ty, 'R');
-    LCD_DisplayChar(tx+32,ty, 'O');
-    LCD_DisplayChar(tx+48,ty, 'P');
 
     // 5) Prepare touch state
     STMPE811_TouchData td = { .orientation = STMPE811_Orientation_Portrait_2 };
@@ -403,9 +389,9 @@ void playLoop(GameMode mode) {
             continue;
         }
 
-        // --- Human turn (or 2-Player mode) ---
+        // --- user turn (or 2-Player mode) ---
 
-        // a) Drop with the on-board B1 button
+        // a) Drop with  button
         if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET) {
             if (placeCoin(curCol)) {
                 // win?

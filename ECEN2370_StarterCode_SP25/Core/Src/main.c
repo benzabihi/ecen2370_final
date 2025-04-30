@@ -107,25 +107,18 @@ int main(void)
   MX_SPI5_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
+
   ApplicationInit(); // Initializes the LCD functionality
-  GameMode mode = menuLoop();
-  playLoop(mode);
 
-    // now branch into 1- or 2-player game loops (to be implemented)
-    if (mode == MODE_1P) {
-        // onePlayerLoop();
-    	LCD_Clear(0, LCD_COLOR_RED);
-    } else {
-        // twoPlayerLoop();
-    	  LCD_Clear(0, LCD_COLOR_GREEN);
 
-    }
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  GameMode mode = menuLoop();
+	  playLoop(mode);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

@@ -6,6 +6,7 @@
  */
 
 #include "ApplicationCode.h"
+#include "main.h"
 
 /* Static variables */
 
@@ -15,6 +16,10 @@ extern void initialise_monitor_handles(void);
 #if COMPILE_TOUCH_FUNCTIONS == 1
 static STMPE811_TouchData StaticTouchData;
 #endif // COMPILE_TOUCH_FUNCTIONS
+
+
+static uint32_t wins1 = 0;
+static uint32_t wins2 = 0;
 
 void ApplicationInit(void)
 {
@@ -202,10 +207,139 @@ static bool placeCoin(uint8_t col) {
   }
   return false;  // column full
 }
+static void showWinScreen(uint8_t player) {
+  LCD_Clear(0, LCD_COLOR_WHITE);
+  LCD_SetTextColor(LCD_COLOR_BLACK);
+  LCD_SetFont(&Font16x24);
+
+  // Build the message
+  char msg[20];
+  int len = sprintf(msg, "Player %d wins!", player);
+
+  // center it
+  int msgWidth  = len * Font16x24.Width;
+  int msgHeight = Font16x24.Height;
+  int x = (LCD_PIXEL_WIDTH  - msgWidth)  / 2;
+  int y = (LCD_PIXEL_HEIGHT - msgHeight) / 2;
+
+  // draw each character
+  for (int i = 0; i < len; i++) {
+    LCD_DisplayChar(x + i*Font16x24.Width, y, msg[i]);
+  }
+}
+
+static bool checkWin(uint8_t player) {
+  // horizontal, vertical, and two diagonals
+  const int dx[4] = { 1, 0, 1,  1 };
+  const int dy[4] = { 0, 1, 1, -1 };
+
+  for (int r = 0; r < ROWS; r++) {
+    for (int c = 0; c < COLS; c++) {
+      if (board[r][c] != player) continue;
+      // try each direction
+      for (int dir = 0; dir < 4; dir++) {
+        int count = 1;
+        for (int step = 1; step < 4; step++) {
+          int nr = r + dy[dir]*step;
+          int nc = c + dx[dir]*step;
+          if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) break;
+          if (board[nr][nc] != player) break;
+          count++;
+        }
+        if (count == 4) return true;
+      }
+    }
+  }
+  return false;
+}
+
+
+// Shows running scores, round time, and a Restart button
+static void finalScreen(uint8_t winner, uint32_t duration_s) {
+  // Update totals
+  if (winner == 1)        wins1++;
+  else if (winner == 2)   wins2++;
+  else /* winner==0 */    {/* ties++; */}
+
+  // Clear to white
+  LCD_Clear(0, LCD_COLOR_WHITE);
+
+  // Centered “Game Over” message
+  LCD_SetTextColor(LCD_COLOR_BLACK);
+  LCD_SetFont(&Font16x24);
+  const char *headline = (winner == 0) ? "Tie Game!" :
+                         (winner == 1) ? "Red Wins!" : "Yellow Wins!";
+  int hl_len = strlen(headline);
+  int hl_x   = (LCD_PIXEL_WIDTH - hl_len*Font16x24.Width)/2;
+  int hl_y   =  20;
+  for (int i = 0; i < hl_len; i++)
+    LCD_DisplayChar(hl_x + i*Font16x24.Width, hl_y, headline[i]);
+
+  // Show scores
+  char buf[32];
+  // Player 1 / Red
+  sprintf(buf, "Red: %lu", wins1);
+  LCD_SetTextColor(LCD_COLOR_RED);
+  int x = (LCD_PIXEL_WIDTH - strlen(buf)*Font16x24.Width)/2;
+  int y = hl_y +  40;
+  for (int i = 0; buf[i]; i++)
+    LCD_DisplayChar(x + i*Font16x24.Width, y, buf[i]);
+
+  // Player 2 / Yellow
+  sprintf(buf, "Yellow: %lu", wins2);
+  LCD_SetTextColor(LCD_COLOR_YELLOW);
+  y += 30;
+  x  = (LCD_PIXEL_WIDTH - strlen(buf)*Font16x24.Width)/2;
+  for (int i = 0; buf[i]; i++)
+    LCD_DisplayChar(x + i*Font16x24.Width, y, buf[i]);
+
+  // Show round time
+  sprintf(buf, "Time: %lus", duration_s);
+  LCD_SetTextColor(LCD_COLOR_BLACK);
+  y += 30;
+  x  = (LCD_PIXEL_WIDTH - strlen(buf)*Font16x24.Width)/2;
+  for (int i = 0; buf[i]; i++)
+    LCD_DisplayChar(x + i*Font16x24.Width, y, buf[i]);
+
+  // Draw a Restart button at bottom
+  const int btnW = LCD_PIXEL_WIDTH - 2*BTN_MARGIN;
+  const int btnH = BTN_HEIGHT;
+  const int btnX = BTN_MARGIN;
+  const int btnY = LCD_PIXEL_HEIGHT - BTN_HEIGHT - BTN_MARGIN;
+  fillRect(btnX, btnY, btnW, btnH, LCD_COLOR_BLUE);
+  const char *lbl = "Restart";
+  x = btnX + (btnW - strlen(lbl)*Font16x24.Width)/2;
+  y = btnY + (btnH - Font16x24.Height)/2;
+  LCD_SetTextColor(LCD_COLOR_WHITE);
+  for (int i = 0; lbl[i]; i++)
+    LCD_DisplayChar(x + i*Font16x24.Width, y, lbl[i]);
+
+  // Wait for either the on-board button or a touch on “Restart”
+  STMPE811_TouchData td = { .orientation = STMPE811_Orientation_Portrait_2 };
+  while (1) {
+    if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
+      uint16_t tx = td.x;
+      uint16_t ty = LCD_PIXEL_HEIGHT - td.y;
+      if (tx >= btnX && tx < btnX + btnW &&
+          ty >= btnY && ty < btnY + btnH) {
+        break;
+      }
+    }
+    HAL_Delay(50);
+  }
+}
+static bool checkTie(void) {
+  for (int r = 0; r < ROWS; r++)
+    for (int c = 0; c < COLS; c++)
+      if (board[r][c] == 0)
+        return false;
+  return true;
+}
 
 
 void playLoop(GameMode mode) {
   // clear state
+  uint32_t start_ms = HAL_GetTick();
   memset(board, 0, sizeof(board));
   curCol        = COLS/2;
   currentPlayer = 1;
@@ -232,29 +366,51 @@ void playLoop(GameMode mode) {
   STMPE811_TouchData td = { .orientation = STMPE811_Orientation_Portrait_2 };
 
   while (1) {
-    if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
-      uint16_t x = td.x;
-      uint16_t y = LCD_PIXEL_HEIGHT - td.y;
-
-      if (y >= BOARD_HEIGHT && y < BOARD_HEIGHT + DROP_BTN_H) {
-        // drop
-        if (placeCoin(curCol)) {
-          // switch player (or insert AI turn here for 1-player)
-          currentPlayer = (currentPlayer==1?2:1);
-          drawHoverCoin();
-        }
-      } else {
-        // move left/right
-        if (x < LCD_PIXEL_WIDTH/2) {
-          if (curCol > 0) curCol--;
-        } else {
-          if (curCol < COLS-1) curCol++;
-        }
-        drawHoverCoin();
+      // 1) Check the user-button for “DROP”
+      if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET) {
+          // we only drop once per press, so debounced:
+    	   if (placeCoin(curCol)) {
+    	     // 1) Win?
+    		      if (checkWin(currentPlayer)) {
+    		        // compute how long the round took
+    		        uint32_t dur_s = (HAL_GetTick() - start_ms) / 1000;
+    		        // show the interactive final screen (blocks until user restarts)
+    		        finalScreen(currentPlayer, dur_s);
+    		        return;
+    		      }
+    	     // 2) Tie?
+    		      if (checkTie()) {
+    		           uint32_t dur_s = (HAL_GetTick() - start_ms) / 1000;
+    		           finalScreen(0, dur_s);
+    		           return;
+    		         }
+    	     // 3) No end: swap players & continue
+    	     currentPlayer = (currentPlayer==1 ? 2 : 1);
+    	     drawHoverCoin();
+    	   }
+          // wait for release
+          while (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET) {
+              HAL_Delay(10);
+          }
       }
-    }
-    HAL_Delay(50);
+      else {
+          // 2) If no button press, poll touch for left/right
+          if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
+              uint16_t x = td.x;
+              uint16_t y = LCD_PIXEL_HEIGHT - td.y;
+
+              if (x < LCD_PIXEL_WIDTH/2) {
+                  if (curCol > 0) curCol--;
+              } else {
+                  if (curCol < COLS-1) curCol++;
+              }
+              drawHoverCoin();
+          }
+      }
+
+      HAL_Delay(50);
   }
+
 }
 
 

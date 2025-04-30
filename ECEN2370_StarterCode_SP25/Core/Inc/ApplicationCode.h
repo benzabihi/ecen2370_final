@@ -40,4 +40,5 @@ GameMode menuLoop(void);
 
 // Start the gameplay screen in either 1- or 2-player mode
 void playLoop(GameMode mode);
+
 #endif /* INC_APPLICATIONCODE_H_ */

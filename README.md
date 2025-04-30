@@ -1,0 +1,1 @@
+The hardest part of this project was getting git to work in my stm IDE. Everything is committed close together because I couldnt figure out git until todau. I had saved versions of working steps to immitate a commit and then when i figured it out i did it all at once.

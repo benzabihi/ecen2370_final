@@ -60,8 +60,8 @@ all: main-build
 main-build: ECEN2370_StarterCode_SP25.elf secondary-outputs
 
 # Tool invocations
-ECEN2370_StarterCode_SP25.elf ECEN2370_StarterCode_SP25.map: $(OBJS) $(USER_OBJS) /Users/benzabihi/Downloads/ECEN2370_StarterCode_SP25/STM32F429ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ECEN2370_StarterCode_SP25.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/benzabihi/Downloads/ECEN2370_StarterCode_SP25/STM32F429ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECEN2370_StarterCode_SP25.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+ECEN2370_StarterCode_SP25.elf ECEN2370_StarterCode_SP25.map: $(OBJS) $(USER_OBJS) /Users/benzabihi/git/finalprojectrepo/ECEN2370_StarterCode_SP25/STM32F429ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "ECEN2370_StarterCode_SP25.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/benzabihi/git/finalprojectrepo/ECEN2370_StarterCode_SP25/STM32F429ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ECEN2370_StarterCode_SP25.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

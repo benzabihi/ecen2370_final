@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ApplicationCode.h"
+#include "LCD_Driver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -107,12 +108,17 @@ int main(void)
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
   ApplicationInit(); // Initializes the LCD functionality
-  LCD_Visual_Demo();
-  HAL_Delay(5000);
-  /* USER CODE END 2 */
-#if COMPILE_TOUCH_FUNCTIONS == 1 // This block will need to be deleted
-  LCD_Touch_Polling_Demo(); // This function Will not return
-#endif
+  GameMode mode = menuLoop();
+
+    // now branch into 1- or 2-player game loops (to be implemented)
+    if (mode == MODE_1P) {
+        // onePlayerLoop();
+    	LCD_Clear(0, LCD_COLOR_RED);
+    } else {
+        // twoPlayerLoop();
+    	  LCD_Clear(0, LCD_COLOR_GREEN);
+
+    }
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)

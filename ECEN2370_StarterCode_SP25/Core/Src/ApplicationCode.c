@@ -10,7 +10,7 @@
 
 /* Static variables */
 
-
+extern RNG_HandleTypeDef hrng;
 extern void initialise_monitor_handles(void); 
 
 #if COMPILE_TOUCH_FUNCTIONS == 1
@@ -338,79 +338,112 @@ static bool checkTie(void) {
 
 
 void playLoop(GameMode mode) {
-  // clear state
-  uint32_t start_ms = HAL_GetTick();
-  memset(board, 0, sizeof(board));
-  curCol        = COLS/2;
-  currentPlayer = 1;
+    // 1) Start the timer
+    uint32_t start_ms = HAL_GetTick();
 
-  // initial draw
-  LCD_Clear(0, LCD_COLOR_WHITE);
-  drawBoard();
-  drawHoverCoin();
+    // 2) Clear and init game state
+    memset(board, 0, sizeof(board));
+    curCol = COLS/2;
+    if (mode == MODE_1P) {
+        // randomly choose who starts: 1 = human, 2 = AI
+        uint32_t rnd;
+        HAL_RNG_GenerateRandomNumber(&hrng, &rnd);
+        currentPlayer = (rnd & 1) ? 2 : 1;
+    } else {
+        currentPlayer = 1;
+    }
 
-  // draw “Drop” button
-  for (int y = BOARD_HEIGHT; y < BOARD_HEIGHT + DROP_BTN_H; y++)
-    for (int x = 0; x < LCD_PIXEL_WIDTH; x++)
-      LCD_Draw_Pixel(x, y, GRID_COLOR);
-  LCD_SetTextColor(BOARD_COLOR);
-  LCD_SetFont(&Font16x24);
-  // center “DROP”
-  int tx = (LCD_PIXEL_WIDTH - 4*Font16x24.Width)/2;
-  int ty = BOARD_HEIGHT + (DROP_BTN_H - Font16x24.Height)/2;
-  LCD_DisplayChar(tx,   ty, 'D');
-  LCD_DisplayChar(tx+16,ty, 'R');
-  LCD_DisplayChar(tx+32,ty, 'O');
-  LCD_DisplayChar(tx+48,ty, 'P');
+    // 3) Initial draw
+    LCD_Clear(0, LCD_COLOR_WHITE);
+    drawBoard();
+    drawHoverCoin();
 
-  STMPE811_TouchData td = { .orientation = STMPE811_Orientation_Portrait_2 };
+    // 4) (Optional) draw the “DROP” region for reference
+    for (int y = BOARD_HEIGHT; y < BOARD_HEIGHT + DROP_BTN_H; y++)
+        for (int x = 0; x < LCD_PIXEL_WIDTH; x++)
+            LCD_Draw_Pixel(x, y, GRID_COLOR);
+    LCD_SetTextColor(BOARD_COLOR);
+    LCD_SetFont(&Font16x24);
+    int tx = (LCD_PIXEL_WIDTH - 4*Font16x24.Width)/2;
+    int ty = BOARD_HEIGHT + (DROP_BTN_H - Font16x24.Height)/2;
+    LCD_DisplayChar(tx,   ty, 'D');
+    LCD_DisplayChar(tx+16,ty, 'R');
+    LCD_DisplayChar(tx+32,ty, 'O');
+    LCD_DisplayChar(tx+48,ty, 'P');
 
-  while (1) {
-      // 1) Check the user-button for “DROP”
-      if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET) {
-          // we only drop once per press, so debounced:
-    	   if (placeCoin(curCol)) {
-    	     // 1) Win?
-    		      if (checkWin(currentPlayer)) {
-    		        // compute how long the round took
-    		        uint32_t dur_s = (HAL_GetTick() - start_ms) / 1000;
-    		        // show the interactive final screen (blocks until user restarts)
-    		        finalScreen(currentPlayer, dur_s);
-    		        return;
-    		      }
-    	     // 2) Tie?
-    		      if (checkTie()) {
-    		           uint32_t dur_s = (HAL_GetTick() - start_ms) / 1000;
-    		           finalScreen(0, dur_s);
-    		           return;
-    		         }
-    	     // 3) No end: swap players & continue
-    	     currentPlayer = (currentPlayer==1 ? 2 : 1);
-    	     drawHoverCoin();
-    	   }
-          // wait for release
-          while (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET) {
-              HAL_Delay(10);
-          }
-      }
-      else {
-          // 2) If no button press, poll touch for left/right
-          if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
-              uint16_t x = td.x;
-              uint16_t y = LCD_PIXEL_HEIGHT - td.y;
+    // 5) Prepare touch state
+    STMPE811_TouchData td = { .orientation = STMPE811_Orientation_Portrait_2 };
 
-              if (x < LCD_PIXEL_WIDTH/2) {
-                  if (curCol > 0) curCol--;
-              } else {
-                  if (curCol < COLS-1) curCol++;
-              }
-              drawHoverCoin();
-          }
-      }
+    // 6) Main game loop
+    while (1) {
+        // --- AI turn (1-Player mode only) ---
+        if (mode == MODE_1P && currentPlayer == 2) {
+            uint32_t rnd;
+            uint8_t aiCol;
+            // pick a random non-full column
+            do {
+                HAL_RNG_GenerateRandomNumber(&hrng, &rnd);
+                aiCol = rnd % COLS;
+            } while (!placeCoin(aiCol));
 
-      HAL_Delay(50);
-  }
+            // win?
+            if (checkWin(2)) {
+                finalScreen(2, (HAL_GetTick() - start_ms)/1000);
+                return;
+            }
+            // tie?
+            if (checkTie()) {
+                finalScreen(0, (HAL_GetTick() - start_ms)/1000);
+                return;
+            }
+            // hand back to human
+            currentPlayer = 1;
+            curCol = COLS/2;
+            drawHoverCoin();
+            continue;
+        }
 
+        // --- Human turn (or 2-Player mode) ---
+
+        // a) Drop with the on-board B1 button
+        if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET) {
+            if (placeCoin(curCol)) {
+                // win?
+                if (checkWin(currentPlayer)) {
+                    finalScreen(currentPlayer, (HAL_GetTick() - start_ms)/1000);
+                    return;
+                }
+                // tie?
+                if (checkTie()) {
+                    finalScreen(0, (HAL_GetTick() - start_ms)/1000);
+                    return;
+                }
+                // next turn
+                if (mode == MODE_1P)
+                    currentPlayer = 2;               // AI next
+                else
+                    currentPlayer = (currentPlayer==1?2:1);  // swap players
+                curCol = COLS/2;
+                drawHoverCoin();
+            }
+            // simple debounce: wait for release
+            while (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin) == GPIO_PIN_SET)
+                HAL_Delay(10);
+        }
+        // b) Otherwise, slide hover-coin left/right via touch
+        else if (STMPE811_ReadTouch(&td) == STMPE811_State_Pressed) {
+            uint16_t x = td.x;
+            // flip Y if you ever need it: uint16_t y = LCD_PIXEL_HEIGHT - td.y;
+            if (x < LCD_PIXEL_WIDTH/2) {
+                if (curCol > 0) curCol--;
+            } else {
+                if (curCol < COLS-1) curCol++;
+            }
+            drawHoverCoin();
+        }
+
+        HAL_Delay(50);
+    }
 }
 
 

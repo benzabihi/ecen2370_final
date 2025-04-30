@@ -11,4 +11,4 @@
 ../Core/Src/ApplicationCode.c:231:13:checkWin	12
 ../Core/Src/ApplicationCode.c:258:13:finalScreen	15
 ../Core/Src/ApplicationCode.c:331:13:checkTie	4
-../Core/Src/ApplicationCode.c:340:6:playLoop	13
+../Core/Src/ApplicationCode.c:340:6:playLoop	21

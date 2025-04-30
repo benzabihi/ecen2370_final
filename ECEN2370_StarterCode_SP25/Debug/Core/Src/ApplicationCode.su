@@ -11,4 +11,4 @@
 ../Core/Src/ApplicationCode.c:231:13:checkWin	80	static
 ../Core/Src/ApplicationCode.c:258:13:finalScreen	144	static
 ../Core/Src/ApplicationCode.c:331:13:checkTie	16	static
-../Core/Src/ApplicationCode.c:340:6:playLoop	56	static
+../Core/Src/ApplicationCode.c:340:6:playLoop	64	static

@@ -1,0 +1,3 @@
+../Core/Src/ApplicationCode.c:19:6:ApplicationInit	8	static
+../Core/Src/ApplicationCode.c:36:6:LCD_Visual_Demo	8	static
+../Core/Src/ApplicationCode.c:42:6:LCD_Touch_Polling_Demo	8	static

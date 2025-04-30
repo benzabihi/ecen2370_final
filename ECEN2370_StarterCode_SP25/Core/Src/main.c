@@ -109,6 +109,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   ApplicationInit(); // Initializes the LCD functionality
   GameMode mode = menuLoop();
+  playLoop(mode);
 
     // now branch into 1- or 2-player game loops (to be implemented)
     if (mode == MODE_1P) {

@@ -34,6 +34,10 @@ typedef enum {
 // Draw the two buttons (“1-Player” / “2-Player”)
 void showMenu(void);
 
+
 // Block until user taps a button, then return the chosen mode
 GameMode menuLoop(void);
+
+// Start the gameplay screen in either 1- or 2-player mode
+void playLoop(GameMode mode);
 #endif /* INC_APPLICATIONCODE_H_ */

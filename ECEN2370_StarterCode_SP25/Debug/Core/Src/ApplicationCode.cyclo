@@ -4,3 +4,7 @@
 ../Core/Src/ApplicationCode.c:61:13:fillRect	3
 ../Core/Src/ApplicationCode.c:74:6:showMenu	1
 ../Core/Src/ApplicationCode.c:109:10:menuLoop	10
+../Core/Src/ApplicationCode.c:152:13:drawBoard	8
+../Core/Src/ApplicationCode.c:176:13:drawHoverCoin	4
+../Core/Src/ApplicationCode.c:190:13:placeCoin	4
+../Core/Src/ApplicationCode.c:207:6:playLoop	11
